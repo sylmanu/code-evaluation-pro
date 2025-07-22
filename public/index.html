@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Code Evaluation Pro</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <div class="header-content">
+        <div class="header-text">
+          <h1><i class="fas fa-code"></i>自動採点システム</h1>
+          <p>Default LLM Model: GPT-4 Turbo</p>
+        </div>
+        <button class="settings-icon-btn" id="settingsIconBtn" title="LLM Settings">
+          <i class="fas fa-cog"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Main Input Grid -->
+    <div class="main-grid">
+      <!-- Problem Statement Card -->
+      <div class="card">
+        <h3><i class="fas fa-file-text"></i> Problem Statement</h3>
+        <div class="textarea-container">
+          <textarea
+            id="problemStatement"
+            placeholder="Enter the programming problem statement here...
+          問題文例：  Vectorは3次元ベクトルを表す構造体である。空欄を記述してプログラムを完成させよ。
+#include 	&lt;stdio.h&gt;
+#include 	&lt;math.h&gt;
+
+struct Vector {
+    double x;
+    double y;
+    double z;
+};
+
+//挿入位置
+
+int main() {
+    Vector a = { 1.0, 1.0, 1.0 };
+    printf(&quot;ベクトルaの長さ：%lf\n&quot;, getLength(a));
+    Normalize(&a);
+    printf(&quot;Normalize後のベクトルaの長さ：%lf\n&quot;, getLength(a));
+}"
+            required
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- File Upload Card -->
+      <div class="card">
+        <h3><i class="fas fa-upload"></i> Student Submissions</h3>
+        <div class="file-upload" id="fileUpload">
+          <div class="upload-icon">
+            <i class="fas fa-cloud-upload-alt"></i>
+          </div>
+          <h4>Drop CSV file here or click to browse</h4>
+          <p>Accepted format: CSV with student submissions</p>
+          <input type="file" id="codeFile" accept=".csv" style="display: none;">
+        </div>
+        <div id="csvPreview" class="csv-preview hidden">
+          <h4>File Preview:</h4>
+          <div id="previewContent"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evaluate Section -->
+    <div class="evaluate-section">
+      <button class="btn btn-primary evaluate-btn" id="evaluateBtn" disabled>
+        <i class="fas fa-play"></i>
+        Start Evaluation
+      </button>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="progress-section" id="progressSection">
+      <div class="progress-header">
+        <h3><i class="fas fa-chart-line"></i> Evaluation Progress</h3>
+        <button class="btn btn-secondary" id="pauseBtn">
+          <i class="fas fa-pause"></i> Pause
+        </button>
+      </div>
+      <div class="progress-bar-container">
+        <div class="progress-bar" id="progressBar"></div>
+      </div>
+      <div class="progress-stats">
+        <div class="stat-item">
+          <div class="stat-value" id="currentItem">0</div>
+          <div class="stat-label">Current</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="totalItems">0</div>
+          <div class="stat-label">Total</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="avgScore">0</div>
+          <div class="stat-label">Avg Score</div>
+        </div>
+        <div class="stat-item">
+          <div class="stat-value" id="timeElapsed">00:00</div>
+          <div class="stat-label">Time</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="summary-stats hidden" id="summaryStats">
+      <div class="summary-card">
+        <h4>Perfect Scores</h4>
+        <div class="value" id="perfectCount">0</div>
+      </div>
+      <div class="summary-card">
+        <h4>Passing Scores</h4>
+        <div class="value" id="passingCount">0</div>
+      </div>
+      <div class="summary-card">
+        <h4>Compilation Errors</h4>
+        <div class="value" id="errorCount">0</div>
+      </div>
+      <div class="summary-card">
+        <h4>Average Score</h4>
+        <div class="value" id="finalAvgScore">0</div>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="results-section">
+      <div class="results-header">
+        <h3><i class="fas fa-list"></i> Evaluation Results</h3>
+        <div class="results-controls">
+          <div class="filter-controls">
+            <select class="filter-select" id="filterSelect">
+              <option value="all">All Results</option>
+              <option value="perfect">Perfect Scores</option>
+              <option value="passing">Passing Scores</option>
+              <option value="failing">Failing Scores</option>
+              <option value="errors">Compilation Errors</option>
+            </select>
+            <button class="btn btn-secondary" id="sortBtn">
+              <i class="fas fa-sort"></i> Sort by Score
+            </button>
+          </div>
+          <button class="btn btn-primary" id="exportBtn" disabled>
+            <i class="fas fa-download"></i> Export CSV
+          </button>
+        </div>
+      </div>
+      <div class="results-grid" id="resultsGrid">
+        <p style="text-align: center; color: var(--text-muted); padding: 2rem;">
+          No results yet. Upload a CSV file and start evaluation to see results.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-content">
+      <div class="spinner"></div>
+      <h3>Processing Evaluations...</h3>
+      <p>This may take a few minutes depending on the number of submissions.</p>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast">
+    <div id="toastMessage"></div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="settings-modal" id="settingsModal" style="display: none !important; visibility: hidden; opacity: 0;">
+    <div class="settings-modal-content">
+      <div class="settings-modal-header">
+        <h3><i class="fas fa-cog"></i> LLM Settings</h3>
+        <button class="settings-close-btn" id="settingsCloseBtn">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+      <div class="settings-modal-body">
+        <div class="settings-grid">
+          <div class="setting-group">
+            <label for="llmProvider">LLM Provider</label>
+            <select id="llmProvider" class="setting-select">
+              <option value="openai">OpenAI</option>
+              <option value="claude">Anthropic Claude</option>
+              <option value="gemini">Google Gemini</option>
+              <option value="custom">Custom API</option>
+            </select>
+          </div>
+          <div class="setting-group">
+            <label for="llmModel">Model</label>
+            <select id="llmModel" class="setting-select">
+              <option value="gpt-4-turbo">GPT-4 Turbo</option>
+              <option value="gpt-4">GPT-4</option>
+              <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+            </select>
+          </div>
+          <div class="setting-group api-key-group">
+            <label for="apiKey">API Key</label>
+            <div class="api-key-input">
+              <input type="password" id="apiKey" class="setting-input" placeholder="Enter your API key...">
+              <button type="button" class="key-visibility-btn" id="keyVisibilityBtn">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <small class="setting-hint">Keys are stored locally and never sent to our servers</small>
+          </div>
+          <div class="setting-group">
+            <label for="customEndpoint">Custom Endpoint (optional)</label>
+            <input type="url" id="customEndpoint" class="setting-input" placeholder="https://api.example.com/v1/chat">
+          </div>
+        </div>
+      </div>
+      <div class="settings-modal-footer">
+        <button class="btn btn-secondary" id="resetSettings">
+          <i class="fas fa-undo"></i> Reset
+        </button>
+        <button class="btn btn-primary" id="saveSettings">
+          <i class="fas fa-save"></i> Save Settings
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
