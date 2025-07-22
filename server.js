@@ -6,7 +6,7 @@ const app = express();
 const port = process.env.PORT || 3000; // ← Railway will provide PORT
 
 // Hardcoded API key - replace with your actual key
-const HARDCODED_API_KEY = "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"; // Replace this with your actual OpenAI API key
+const HARDCODED_API_KEY = "sk-"; // Replace this with your actual OpenAI API key
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json({ limit: '50mb' })); // Increased limit for large CSV files
