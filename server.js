@@ -120,3 +120,9 @@ app.listen(port, () => {
     console.log(`🔑 Hardcoded API Key: ${HARDCODED_API_KEY !== "sk-your-openai-api-key-here" ? 'Configured ✅' : 'Please set your API key ❌'}`);
     console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 });
+
+
+
+// git add .
+// git commit -m "Add OpenAI API key or whatever"
+// git push
