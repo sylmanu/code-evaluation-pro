@@ -14,7 +14,7 @@
       <div class="header-content">
         <div class="header-text">
           <h1><i class="fas fa-code"></i>自動採点システム</h1>
-          <p>Default LLM Model: GPT-4 Turbo</p>
+          <p>Default LLM Model: GPT-4o</p>
         </div>
         <button class="settings-icon-btn" id="settingsIconBtn" title="LLM Settings">
           <i class="fas fa-cog"></i>
@@ -176,17 +176,20 @@ int main() {
   </div>
 
   <!-- Settings Modal -->
-  <div class="settings-modal" id="settingsModal" style="display: none !important; visibility: hidden; opacity: 0;">
-    <div class="settings-modal-content">
-      <div class="settings-modal-header">
-        <h3><i class="fas fa-cog"></i> LLM Settings</h3>
-        <button class="settings-close-btn" id="settingsCloseBtn">
-          <i class="fas fa-times"></i>
-        </button>
-      </div>
-      <div class="settings-modal-body">
+ <div class="settings-modal" id="settingsModal">
+  <div class="settings-modal-content">
+    <div class="settings-modal-header">
+      <h3><i class="fas fa-cog"></i> LLM Settings</h3>
+      <button class="settings-close-btn" id="settingsCloseBtn" title="Close Settings">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+    <div class="settings-modal-body">
+
+      <section class="setting-group-section">
+        <h4><i class="fas fa-server"></i> API Configuration</h4>
         <div class="settings-grid">
-          <div class="setting-group">
+          <div class="setting-item">
             <label for="llmProvider">LLM Provider</label>
             <select id="llmProvider" class="setting-select">
               <option value="openai">OpenAI</option>
@@ -195,41 +198,90 @@ int main() {
               <option value="custom">Custom API</option>
             </select>
           </div>
-          <div class="setting-group">
+          <div class="setting-item">
             <label for="llmModel">Model</label>
             <select id="llmModel" class="setting-select">
+              <option value="gpt-4o">GPT-4o (Recommended)</option>
               <option value="gpt-4-turbo">GPT-4 Turbo</option>
               <option value="gpt-4">GPT-4</option>
-              <option value="gpt-4o">GPT-4o</option>
               <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
-            </select>
+              </select>
           </div>
-          <div class="setting-group api-key-group">
+          <div class="setting-item api-key-group">
             <label for="apiKey">API Key</label>
             <div class="api-key-input">
               <input type="password" id="apiKey" class="setting-input" placeholder="Enter your API key...">
-              <button type="button" class="key-visibility-btn" id="keyVisibilityBtn">
+              <button type="button" class="key-visibility-btn" id="keyVisibilityBtn" title="Toggle visibility">
                 <i class="fas fa-eye"></i>
               </button>
+              <button type="button" class="api-test-btn" id="apiTestBtn" title="Test API Key">
+                <i class="fas fa-check"></i>
+              </button>
+              <span class="api-test-status" id="apiTestStatus"></span>
             </div>
-            <small class="setting-hint">Keys are stored locally and never sent to our servers</small>
+            <small class="setting-hint api-key-hint">
+              Keys are stored locally in your browser and never sent to our servers.
+              <a href="#" id="providerApiLink" target="_blank" rel="noopener noreferrer">Where to find my API key?</a>
+            </small>
           </div>
-          <div class="setting-group">
-            <label for="customEndpoint">Custom Endpoint (optional)</label>
+          <div class="setting-item hidden" id="customEndpointGroup">
+            <label for="customEndpoint">Custom API Endpoint (optional)</label>
             <input type="url" id="customEndpoint" class="setting-input" placeholder="https://api.example.com/v1/chat">
+            <small class="setting-hint">Enter the full URL for your custom API endpoint.</small>
           </div>
         </div>
-      </div>
-      <div class="settings-modal-footer">
-        <button class="btn btn-secondary" id="resetSettings">
-          <i class="fas fa-undo"></i> Reset
-        </button>
-        <button class="btn btn-primary" id="saveSettings">
-          <i class="fas fa-save"></i> Save Settings
-        </button>
-      </div>
+      </section>
+
+      <section class="setting-group-section">
+        <h4><i class="fas fa-sliders-h"></i> Model Parameters</h4>
+        <div class="settings-grid two-column">
+          <div class="setting-item">
+            <label for="temperature">Temperature</label>
+            <input type="range" id="temperature" class="setting-slider" min="0" max="2" step="0.01" value="0.7">
+            <span class="slider-value" id="temperatureValue">0.7</span>
+            <small class="setting-hint">Controls randomness. Lower for more deterministic, higher for more creative.</small>
+          </div>
+          <div class="setting-item">
+            <label for="maxTokens">Max Response Length (Tokens)</label>
+            <input type="range" id="maxTokens" class="setting-slider" min="10" max="4000" step="10" value="500">
+            <span class="slider-value" id="maxTokensValue">500</span>
+            <small class="setting-hint">Maximum number of tokens to generate in the response.</small>
+          </div>
+          <div class="setting-item">
+            <label for="topP">Top P (Nucleus Sampling)</label>
+            <input type="range" id="topP" class="setting-slider" min="0" max="1" step="0.01" value="1.0">
+            <span class="slider-value" id="topPValue">1.0</span>
+            <small class="setting-hint">Controls diversity via cumulative probability of tokens.</small>
+          </div>
+          <div class="setting-item">
+            <label for="frequencyPenalty">Frequency Penalty</label>
+            <input type="range" id="frequencyPenalty" class="setting-slider" min="-2" max="2" step="0.01" value="0">
+            <span class="slider-value" id="frequencyPenaltyValue">0</span>
+            <small class="setting-hint">Reduces repetition of generated tokens.</small>
+          </div>
+          </div>
+      </section>
+
+      <section class="setting-group-section">
+        <h4><i class="fas fa-edit"></i> Custom Instructions</h4>
+        <div class="setting-item full-width">
+          <label for="systemPrompt">System Prompt (Global)</label>
+          <textarea id="systemPrompt" class="setting-textarea" rows="4" placeholder="e.g., 'You are a strict code evaluator. Provide feedback concisely.'"></textarea>
+          <small class="setting-hint">Define the LLM's role or instructions for all evaluations.</small>
+        </div>
+      </section>
+
+    </div>
+    <div class="settings-modal-footer">
+      <button class="btn btn-secondary" id="resetSettings">
+        <i class="fas fa-undo"></i> Reset to Defaults
+      </button>
+      <button class="btn btn-primary" id="saveSettings">
+        <i class="fas fa-save"></i> Save Settings
+      </button>
     </div>
   </div>
+</div>
 
   <script src="https://unpkg.com/papaparse@latest/papaparse.min.js"></script>
   <script src="app.js"></script>

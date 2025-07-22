@@ -13,29 +13,15 @@ class CodeEvaluator {
 
     this.initializeElements();
     this.bindEvents();
-    this.initializeSettings();
-    this.ensureModalHidden();
+    this.initializeSettings(); // This now handles both model options and loading settings
   }
 
-  ensureModalHidden() {
-    // Force hide the modal immediately on page load
-    if (this.settingsModal) {
-      this.settingsModal.style.display = 'none !important';
-      this.settingsModal.style.visibility = 'hidden';
-      this.settingsModal.style.opacity = '0';
-    }
-  }
-
+  // Consolidated and refined initializeSettings
   initializeSettings() {
-    // Initialize model options
-    this.updateModelOptions();
-    // Load saved settings
-    this.loadSettingsFromStorage();
-  }
-
-  initializeSettings() {
-    // Initialize model options
-    this.updateModelOptions();
+    this.loadSettingsFromStorage(); // Load saved settings first
+    this.updateModelOptions(); // Then update model options based on loaded provider
+    this.updateSliderDisplays(); // And update slider displays
+    this.updateApiKeyHint(); // Update API key hint based on loaded provider
   }
 
   initializeElements() {
@@ -72,6 +58,22 @@ class CodeEvaluator {
     this.keyVisibilityBtn = document.getElementById('keyVisibilityBtn');
     this.resetSettings = document.getElementById('resetSettings');
     this.saveSettings = document.getElementById('saveSettings');
+
+    // New LLM settings elements
+    this.customEndpointGroup = document.getElementById('customEndpointGroup'); // The div containing customEndpoint
+    this.apiTestBtn = document.getElementById('apiTestBtn');
+    this.apiTestStatus = document.getElementById('apiTestStatus');
+    this.providerApiLink = document.getElementById('providerApiLink');
+
+    this.temperatureSlider = document.getElementById('temperature');
+    this.temperatureValueSpan = document.getElementById('temperatureValue');
+    this.maxTokensSlider = document.getElementById('maxTokens');
+    this.maxTokensValueSpan = document.getElementById('maxTokensValue');
+    this.topPSlider = document.getElementById('topP');
+    this.topPValueSpan = document.getElementById('topPValue');
+    this.frequencyPenaltySlider = document.getElementById('frequencyPenalty');
+    this.frequencyPenaltyValueSpan = document.getElementById('frequencyPenaltyValue');
+    this.systemPromptTextarea = document.getElementById('systemPrompt');
   }
 
   bindEvents() {
@@ -96,20 +98,25 @@ class CodeEvaluator {
     this.settingsIconBtn.addEventListener('click', this.openSettingsModal.bind(this));
     this.settingsCloseBtn.addEventListener('click', this.closeSettingsModal.bind(this));
     this.settingsModal.addEventListener('click', this.handleModalClick.bind(this));
-    this.llmProvider.addEventListener('change', this.updateModelOptions.bind(this));
+    this.llmProvider.addEventListener('change', this.handleProviderChange.bind(this)); // Use a new handler for provider change
     this.keyVisibilityBtn.addEventListener('click', this.toggleKeyVisibility.bind(this));
+    this.apiTestBtn.addEventListener('click', this.testApiKey.bind(this)); // New API test button event
     this.resetSettings.addEventListener('click', this.resetToDefaults.bind(this));
     this.saveSettings.addEventListener('click', this.saveSettingsToStorage.bind(this));
 
+    // Slider input events
+    this.temperatureSlider.addEventListener('input', () => this.temperatureValueSpan.textContent = this.temperatureSlider.value);
+    this.maxTokensSlider.addEventListener('input', () => this.maxTokensValueSpan.textContent = this.maxTokensSlider.value);
+    this.topPSlider.addEventListener('input', () => this.topPValueSpan.textContent = this.topPSlider.value);
+    this.frequencyPenaltySlider.addEventListener('input', () => this.frequencyPenaltyValueSpan.textContent = this.frequencyPenaltySlider.value);
+
+
     // ESC key to close modal
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.settingsModal.classList.contains('show')) {
+      if (e.key === 'Escape' && this.settingsModal.classList.contains('active')) {
         this.closeSettingsModal();
       }
     });
-
-    // Load saved settings
-    this.loadSettingsFromStorage();
   }
 
   handleDragOver(e) {
@@ -619,88 +626,36 @@ class CodeEvaluator {
     }, 3000);
   }
 
-  // Settings methods
+  // --- Settings methods ---
+
+  // Removed ensureModalHidden - relying on CSS transitions and initial hidden state
+
   openSettingsModal() {
-    const modal = this.settingsModal;
-
-    if (modal) {
-      // Apply working styles (remove the red background, use proper dark theme)
-      modal.style.cssText = `
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        background: rgba(15, 23, 42, 0.9) !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        z-index: 999999 !important;
-        backdrop-filter: blur(4px) !important;
-      `;
-
-      document.body.style.overflow = 'hidden';
-
-      // Ensure the modal content is also properly positioned
-      const modalContent = modal.querySelector('.settings-modal-content');
-      if (modalContent) {
-        modalContent.style.cssText = `
-          background: var(--surface) !important;
-          border: 1px solid var(--border) !important;
-          border-radius: 16px !important;
-          width: 90% !important;
-          max-width: 600px !important;
-          max-height: 80vh !important;
-          overflow: hidden !important;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5) !important;
-          position: relative !important;
-          z-index: 1000000 !important;
-        `;
-      }
-
-      // Force style the close button directly
-      const closeBtn = modal.querySelector('#settingsCloseBtn');
-      if (closeBtn) {
-        closeBtn.style.cssText = `
-          position: absolute !important;
-          top: 15px !important;
-          right: 15px !important;
-          background: none !important;
-          border: none !important;
-          color: #94a3b8 !important;
-          font-size: 18px !important;
-          cursor: pointer !important;
-          padding: 8px !important;
-          border-radius: 4px !important;
-          width: 32px !important;
-          height: 32px !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: center !important;
-          z-index: 999999999 !important;
-        `;
-        console.log('Close button styled:', closeBtn); // Debug log
-      } else {
-        console.error('Close button not found!');
-      }
-
-    } else {
-      console.error('Settings modal element not found!');
-    }
+    this.settingsModal.classList.add('active'); // Add 'active' class to trigger CSS transition
+    document.body.style.overflow = 'hidden'; // Prevent scrolling body when modal is open
+    // The rest of the styling is now handled by CSS
   }
 
   closeSettingsModal() {
-    const modal = this.settingsModal;
-
-    if (modal) {
-      modal.style.display = 'none';
-      document.body.style.overflow = '';
-    }
+    this.settingsModal.classList.remove('active'); // Remove 'active' class to trigger CSS transition
+    document.body.style.overflow = ''; // Restore body scrolling
   }
 
   handleModalClick(e) {
+    // Only close if the click is directly on the modal overlay, not its content
     if (e.target === this.settingsModal) {
       this.closeSettingsModal();
+    }
+  }
+
+  handleProviderChange() {
+    this.updateModelOptions();
+    this.updateApiKeyHint();
+    // Show/hide custom endpoint based on provider selection
+    if (this.llmProvider.value === 'custom') {
+      this.customEndpointGroup.classList.remove('hidden');
+    } else {
+      this.customEndpointGroup.classList.add('hidden');
     }
   }
 
@@ -713,9 +668,9 @@ class CodeEvaluator {
 
     const modelOptions = {
       openai: [
+        { value: 'gpt-4o', text: 'GPT-4o (Recommended)' }, // Prioritize GPT-4o
         { value: 'gpt-4-turbo', text: 'GPT-4 Turbo' },
         { value: 'gpt-4', text: 'GPT-4' },
-        { value: 'gpt-4o', text: 'GPT-4o' },
         { value: 'gpt-3.5-turbo', text: 'GPT-3.5 Turbo' }
       ],
       claude: [
@@ -732,12 +687,43 @@ class CodeEvaluator {
       ]
     };
 
-    modelOptions[provider].forEach(option => {
+    const models = modelOptions[provider] || [];
+    models.forEach(option => {
       const optionElement = document.createElement('option');
       optionElement.value = option.value;
       optionElement.textContent = option.text;
       modelSelect.appendChild(optionElement);
     });
+
+    // Attempt to select the previously saved model if it exists
+    // This is important after loading settings
+    const currentModel = this.llmModel.dataset.currentValue; // Store original value in a data attribute
+    if (currentModel && models.some(m => m.value === currentModel)) {
+        this.llmModel.value = currentModel;
+    } else if (models.length > 0) {
+        this.llmModel.value = models[0].value; // Default to first available
+    }
+  }
+
+  updateApiKeyHint() {
+    const provider = this.llmProvider.value;
+    switch (provider) {
+      case 'openai':
+        this.providerApiLink.href = 'https://platform.openai.com/account/api-keys';
+        this.providerApiLink.textContent = 'Where to find my OpenAI API key?';
+        break;
+      case 'claude':
+        this.providerApiLink.href = 'https://console.anthropic.com/settings/api-keys';
+        this.providerApiLink.textContent = 'Where to find my Anthropic Claude API key?';
+        break;
+      case 'gemini':
+        this.providerApiLink.href = 'https://aistudio.google.com/app/apikey';
+        this.providerApiLink.textContent = 'Where to find my Google Gemini API key?';
+        break;
+      default:
+        this.providerApiLink.href = '#';
+        this.providerApiLink.textContent = 'Where to find my API key?';
+    }
   }
 
   toggleKeyVisibility() {
@@ -746,73 +732,235 @@ class CodeEvaluator {
 
     if (input.type === 'password') {
       input.type = 'text';
-      icon.className = 'fas fa-eye-slash';
+      icon.classList.remove('fa-eye');
+      icon.classList.add('fa-eye-slash');
     } else {
       input.type = 'password';
-      icon.className = 'fas fa-eye';
+      icon.classList.remove('fa-eye-slash');
+      icon.classList.add('fa-eye');
     }
   }
+
+  async testApiKey() {
+    const apiKey = this.apiKey.value.trim();
+    if (!apiKey) {
+      this.showToast('Please enter an API key to test.', 'error');
+      return;
+    }
+
+    const llmProvider = this.llmProvider.value;
+    const customEndpoint = this.customEndpoint.value.trim();
+
+    this.apiTestStatus.textContent = 'Testing...';
+    this.apiTestStatus.style.color = 'orange';
+    this.apiTestStatus.style.display = 'block'; // Show status
+
+    try {
+      // NOTE: In a production environment, this should ideally go through your backend
+      // to avoid exposing API keys client-side. This is for client-side demonstration.
+      let testUrl;
+      let headers = {
+        'Content-Type': 'application/json',
+      };
+      let body = {};
+
+      switch (llmProvider) {
+        case 'openai':
+          testUrl = 'https://api.openai.com/v1/models'; // Low-cost endpoint to test auth
+          headers['Authorization'] = `Bearer ${apiKey}`;
+          break;
+        case 'claude':
+          testUrl = 'https://api.anthropic.com/v1/models';
+          headers['x-api-key'] = apiKey;
+          headers['anthropic-version'] = '2023-06-01'; // Required for Anthropic API
+          break;
+        case 'gemini':
+          // Gemini's API typically requires project ID for model listing.
+          // A simple text generation endpoint test is more practical.
+          // This requires a dummy request.
+          testUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${apiKey}`;
+          body = {
+            contents: [{ parts: [{ text: "Hello" }] }]
+          };
+          break;
+        case 'custom':
+          // For custom, assume a simple GET request for now, or require a specific test endpoint
+          // A more robust implementation would need user to define test endpoint/method
+          testUrl = customEndpoint || ''; // User must provide a valid endpoint
+          // For a custom endpoint, we can't reliably guess how to test it.
+          // For a real app, you'd likely proxy this through your server
+          // or have the user specify test parameters.
+          if (!testUrl) throw new Error('Custom API Endpoint is required for testing.');
+          break;
+        default:
+          throw new Error('Unsupported LLM Provider for API key test.');
+      }
+
+      const fetchOptions = {
+        method: (llmProvider === 'gemini') ? 'POST' : 'GET',
+        headers: headers,
+        body: (llmProvider === 'gemini') ? JSON.stringify(body) : undefined
+      };
+
+      const response = await fetch(testUrl, fetchOptions);
+
+      if (response.ok) {
+        // For Gemini, check if response contains expected structure
+        if (llmProvider === 'gemini') {
+            const data = await response.json();
+            if (data && data.candidates && data.candidates.length > 0) {
+                this.apiTestStatus.textContent = 'API Key Valid!';
+                this.apiTestStatus.style.color = 'green';
+            } else {
+                this.apiTestStatus.textContent = 'Invalid API Key (Gemini response issue).';
+                this.apiTestStatus.style.color = 'red';
+            }
+        } else {
+            this.apiTestStatus.textContent = 'API Key Valid!';
+            this.apiTestStatus.style.color = 'green';
+        }
+      } else {
+        const errorData = await response.json();
+        const errorMessage = errorData.error ? (errorData.error.message || JSON.stringify(errorData.error)) : JSON.stringify(errorData);
+        this.apiTestStatus.textContent = `Invalid API Key: ${errorMessage.substring(0, 50)}...`; // Truncate
+        this.apiTestStatus.style.color = 'red';
+      }
+    } catch (error) {
+      console.error('API Key Test Error:', error);
+      this.apiTestStatus.textContent = `Error during test: ${error.message}`;
+      this.apiTestStatus.style.color = 'red';
+    } finally {
+      setTimeout(() => {
+        this.apiTestStatus.style.display = 'none'; // Hide status after a delay
+      }, 5000);
+    }
+  }
+
 
   getCurrentSettings() {
     return {
       provider: this.llmProvider.value,
       model: this.llmModel.value,
-      apiKey: this.apiKey.value,
-      customEndpoint: this.customEndpoint.value
+      apiKey: this.apiKey.value, // API key is needed for evaluation
+      customEndpoint: this.customEndpoint.value,
+      temperature: parseFloat(this.temperatureSlider.value),
+      maxTokens: parseInt(this.maxTokensSlider.value),
+      topP: parseFloat(this.topPSlider.value),
+      frequencyPenalty: parseFloat(this.frequencyPenaltySlider.value),
+      systemPrompt: this.systemPromptTextarea.value,
     };
   }
 
   saveSettingsToStorage() {
     const settings = this.getCurrentSettings();
 
-    // Don't save API key for security (user will need to enter it each session)
-    const settingsToSave = { ...settings };
-    delete settingsToSave.apiKey;
+    // Do NOT save API key in localStorage for security reasons.
+    // It should be entered by the user each session or managed via secure server-side methods.
+    const settingsToSave = {
+      provider: settings.provider,
+      model: settings.model,
+      customEndpoint: settings.customEndpoint,
+      temperature: settings.temperature,
+      maxTokens: settings.maxTokens,
+      topP: settings.topP,
+      frequencyPenalty: settings.frequencyPenalty,
+      systemPrompt: settings.systemPrompt,
+    };
 
     try {
       localStorage.setItem('llmSettings', JSON.stringify(settingsToSave));
-      this.showToast('Settings saved successfully!', 'success');
+      this.showToast('LLM settings saved successfully!', 'success');
       this.closeSettingsModal();
     } catch (error) {
-      this.showToast('Error saving settings', 'error');
+      this.showToast('Error saving LLM settings', 'error');
+      console.error('Error saving LLM settings:', error);
     }
   }
 
   loadSettingsFromStorage() {
     try {
       const savedSettings = localStorage.getItem('llmSettings');
-      if (savedSettings) {
-        const settings = JSON.parse(savedSettings);
+      const defaultSettings = this.getDefaultSettings(); // Get defaults for merging
 
-        if (settings.provider) {
-          this.llmProvider.value = settings.provider;
-          this.updateModelOptions();
-        }
-        if (settings.model) {
-          this.llmModel.value = settings.model;
-        }
-        if (settings.customEndpoint) {
-          this.customEndpoint.value = settings.customEndpoint;
-        }
+      let settingsToApply = defaultSettings;
+
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        // Merge saved settings with defaults to ensure all fields are covered
+        settingsToApply = { ...defaultSettings, ...parsedSettings };
       }
+
+      this.llmProvider.value = settingsToApply.provider;
+      this.llmModel.dataset.currentValue = settingsToApply.model; // Store to set after updateModelOptions
+      this.customEndpoint.value = settingsToApply.customEndpoint;
+      this.temperatureSlider.value = settingsToApply.temperature;
+      this.maxTokensSlider.value = settingsToApply.maxTokens;
+      this.topPSlider.value = settingsToApply.topP;
+      this.frequencyPenaltySlider.value = settingsToApply.frequencyPenalty;
+      this.systemPromptTextarea.value = settingsToApply.systemPrompt;
+
+      // Manually trigger change/input events to update UI elements
+      this.handleProviderChange(); // This will also call updateModelOptions
+      this.updateSliderDisplays();
+      this.updateApiKeyHint(); // Ensure hint is correct after loading provider
+      this.toggleKeyVisibility(); // Ensure initial key visibility icon is correct if type is password
     } catch (error) {
-      console.error('Error loading settings:', error);
+      console.error('Error loading settings from local storage:', error);
+      // Fallback to default settings if there's an error
+      this.resetToDefaults();
     }
   }
 
+  getDefaultSettings() {
+    return {
+      provider: 'openai',
+      model: 'gpt-4o', // Default to GPT-4o
+      customEndpoint: '',
+      temperature: 0.7,
+      maxTokens: 500,
+      topP: 1.0,
+      frequencyPenalty: 0.0,
+      systemPrompt: 'You are a highly skilled and impartial code evaluator. Provide clear, concise, and accurate feedback on student programming submissions. Focus on correctness, efficiency, and adherence to the problem statement. When providing feedback, always clearly state the compilation status, the result of test cases, code quality, and a concise reason for the assigned score in Japanese. Do not include conversational filler or pleasantries.',
+    };
+  }
+
   resetToDefaults() {
-    this.llmProvider.value = 'openai';
-    this.updateModelOptions();
-    this.llmModel.value = 'gpt-4-turbo';
-    this.apiKey.value = '';
-    this.customEndpoint.value = '';
+    if (!confirm('Are you sure you want to reset all LLM settings to their default values?')) {
+      return;
+    }
+
+    const defaultSettings = this.getDefaultSettings();
+
+    this.llmProvider.value = defaultSettings.provider;
+    this.llmModel.dataset.currentValue = defaultSettings.model;
+    this.apiKey.value = ''; // API key is always cleared on reset
+    this.customEndpoint.value = defaultSettings.customEndpoint;
+    this.temperatureSlider.value = defaultSettings.temperature;
+    this.maxTokensSlider.value = defaultSettings.maxTokens;
+    this.topPSlider.value = defaultSettings.topP;
+    this.frequencyPenaltySlider.value = defaultSettings.frequencyPenalty;
+    this.systemPromptTextarea.value = defaultSettings.systemPrompt;
+
+    // Trigger updates for UI
+    this.handleProviderChange(); // Update models and custom endpoint visibility
+    this.updateSliderDisplays(); // Update slider value text
+    this.updateApiKeyHint(); // Update API key hint
 
     try {
       localStorage.removeItem('llmSettings');
-      this.showToast('Settings reset to defaults', 'success');
+      this.showToast('LLM settings reset to defaults', 'success');
     } catch (error) {
       this.showToast('Error resetting settings', 'error');
+      console.error('Error resetting LLM settings:', error);
     }
+  }
+
+  // Helper to update all slider display values
+  updateSliderDisplays() {
+    this.temperatureValueSpan.textContent = this.temperatureSlider.value;
+    this.maxTokensValueSpan.textContent = this.maxTokensSlider.value;
+    this.topPValueSpan.textContent = this.topPSlider.value;
+    this.frequencyPenaltyValueSpan.textContent = this.frequencyPenaltySlider.value;
   }
 }
 

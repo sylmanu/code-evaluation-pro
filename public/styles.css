@@ -15,6 +15,13 @@
   --text-muted: #94a3b8;
   --border: #475569;
   --shadow: rgba(0, 0, 0, 0.3);
+
+  /* New variables for LLM settings window, derived from existing theme */
+  --modal-bg-color: var(--background);
+  --modal-content-bg: var(--surface);
+  --input-bg-color: var(--background);
+  --button-bg-color: var(--surface-light);
+  --primary-rgb: 59, 130, 246; /* RGB values for --primary */
 }
 
 * {
@@ -107,7 +114,7 @@ textarea {
   border: 2px solid var(--border);
   border-radius: 12px;
   padding: 1rem;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: 'JetBrains Mono', monospace; /* Consider if you want this font for problem statement */
   font-size: 0.9rem;
   resize: vertical;
   transition: border-color 0.3s ease;
@@ -508,6 +515,315 @@ textarea:focus {
   100% { transform: rotate(360deg); }
 }
 
+/* --- LLM Settings Modal Styles --- */
+
+/* General Modal Styles */
+.settings-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6); /* Semi-transparent overlay */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.settings-modal.active { /* Use JS to add/remove this class */
+  opacity: 1;
+  visibility: visible;
+}
+
+.settings-modal-content {
+  background-color: var(--modal-content-bg); /* Use your app's surface color */
+  border-radius: 10px;
+  box-shadow: 0 8px 30px var(--shadow);
+  width: 90%;
+  max-width: 700px; /* Optimal reading width */
+  max-height: 90vh; /* Max height for scrollable content */
+  overflow-y: auto; /* Enable scrolling if content overflows */
+  transform: translateY(-20px); /* Initial state for animation */
+  transition: transform 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-modal.active .settings-modal-content {
+  transform: translateY(0);
+}
+
+.settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background-color: var(--surface-light); /* Match surface-light for header */
+  border-top-left-radius: 10px;
+  border-top-right-radius: 10px;
+}
+
+.settings-modal-header h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.settings-modal-header h3 .fas {
+  margin-right: 10px;
+  color: var(--primary);
+}
+
+.settings-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.settings-close-btn:hover {
+  color: var(--primary);
+}
+
+.settings-modal-body {
+  padding: 1.5rem;
+  flex-grow: 1; /* Allow body to take up remaining space */
+  overflow-y: auto; /* For scrollable content */
+}
+
+/* Section Grouping */
+.setting-group-section {
+  background-color: var(--surface); /* Use surface for sections inside modal */
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+}
+
+.setting-group-section:last-child {
+    margin-bottom: 0; /* Remove margin from the last section */
+}
+
+.setting-group-section h4 {
+  margin-top: 0;
+  margin-bottom: 1rem;
+  color: var(--primary);
+  font-size: 1.2rem;
+  border-bottom: 1px dashed var(--border);
+  padding-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.setting-group-section h4 .fas {
+  margin-right: 10px;
+}
+
+/* Grid Layouts for Settings */
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* Responsive columns */
+  gap: 1.2rem;
+}
+
+.settings-grid.two-column { /* For two-column specific layouts */
+  grid-template-columns: 1fr 1fr;
+}
+
+.setting-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.setting-item.full-width {
+  grid-column: 1 / -1; /* Make this item span all columns */
+}
+
+/* Labels and Inputs */
+label {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+  display: block; /* Ensures label takes full width */
+}
+
+.setting-input,
+.setting-select,
+.setting-textarea {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--input-bg-color);
+  color: var(--text);
+  font-size: 1rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.setting-input:focus,
+.setting-select:focus,
+.setting-textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.3); /* Subtle glow */
+}
+
+.setting-textarea {
+  resize: vertical; /* Allow vertical resizing */
+  min-height: 80px;
+  font-family: 'Inter', sans-serif; /* Use Inter for consistency here */
+}
+
+.setting-hint {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+
+.setting-hint a {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.setting-hint a:hover {
+  text-decoration: underline;
+}
+
+/* API Key Input Specifics */
+.api-key-group {
+  position: relative;
+}
+
+.api-key-input {
+  display: flex;
+  align-items: center;
+  position: relative; /* For button positioning */
+}
+
+.api-key-input .setting-input {
+  padding-right: 80px; /* Space for buttons */
+}
+
+.key-visibility-btn,
+.api-test-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: color 0.2s ease;
+  border-left: 1px solid var(--border); /* Separator */
+  line-height: 1; /* Ensure icon is vertically centered */
+  height: 100%; /* Make buttons fill height for better click area */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.key-visibility-btn {
+  right: 40px; /* Position next to the test button */
+}
+
+.api-test-btn {
+  right: 0;
+  border-left: none; /* No separator for the last button */
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+  background-color: var(--button-bg-color); /* Subtle background */
+}
+
+.key-visibility-btn:hover,
+.api-test-btn:hover {
+  color: var(--primary);
+}
+
+.api-test-status {
+  position: absolute;
+  right: 0; /* Align with input */
+  top: -25px; /* Position above the input */
+  font-size: 0.75rem;
+  font-weight: bold;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background-color: rgba(0,0,0,0.3); /* Semi-transparent background */
+  display: none; /* Hidden by default, shown by JS */
+  white-space: nowrap; /* Prevent wrapping */
+}
+
+/* Range Slider Styles */
+.setting-slider {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  background: var(--border);
+  outline: none;
+  opacity: 0.7;
+  -webkit-transition: .2s;
+  transition: opacity .2s;
+  border-radius: 5px;
+  margin-top: 0.5rem;
+}
+
+.setting-slider:hover {
+  opacity: 1;
+}
+
+.setting-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.setting-slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider-value {
+  font-weight: bold;
+  color: var(--primary);
+  margin-top: 0.3rem;
+  display: block;
+  text-align: right; /* Position value to the right */
+}
+
+/* Footer Buttons */
+.settings-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  padding: 1.5rem;
+  border-top: 1px solid var(--border);
+  background-color: var(--surface-light); /* Match header background */
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+}
+
+/* --- End LLM Settings Modal Styles --- */
+
 @media (max-width: 768px) {
   .main-grid {
     grid-template-columns: 1fr;
@@ -518,12 +834,26 @@ textarea:focus {
     align-items: flex-start;
   }
 
-  /* .container {
-    padding: 1rem;
-  } */
-
   .header h1 {
     font-size: 2rem;
+  }
+
+  /* Responsive adjustments for the modal */
+  .settings-modal-content {
+    width: 95%; /* Make it slightly wider on smaller screens */
+    margin: 1rem; /* Add some margin to prevent sticking to edges */
+  }
+
+  .settings-grid {
+    grid-template-columns: 1fr; /* Stack settings vertically on small screens */
+  }
+
+  .settings-grid.two-column {
+    grid-template-columns: 1fr; /* Also stack two-column layouts */
+  }
+
+  .api-key-input .setting-input {
+    padding-right: 80px; /* Maintain space for buttons */
   }
 }
 
@@ -531,9 +861,9 @@ textarea:focus {
   text-align: center; /* Center the text */
   padding: 1rem 0; /* Add some vertical padding */
   margin-top: 2rem; /* Add some space above the footer */
-  background-color: var(--card-bg-color); /* Or a different background color */
+  background-color: var(--surface); /* Use surface for footer background */
   color: var(--text-muted); /* A muted text color */
   font-size: 0.85rem; /* Smaller font size */
-  border-top: 1px solid var(--border-color); /* Optional: a subtle border at the top */
+  border-top: 1px solid var(--border); /* A subtle border at the top */
 }
 
