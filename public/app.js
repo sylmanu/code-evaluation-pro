@@ -244,7 +244,7 @@ class CodeEvaluator {
     let tableHtml = '<table class="csv-table"><thead><tr>';
 
     // Show only non-sensitive columns for preview
-    const previewColumns = ['oÈ”Ô†', 'Q.No', 'report/answer', 'point', 'comment'];
+    const previewColumns = ['å‡ºå¸­ç•ªå·', 'Q.No', 'report/answer', 'point', 'comment'];
     previewColumns.forEach(col => {
       if (headers.includes(col)) {
         tableHtml += `<th>${col}</th>`;
@@ -343,7 +343,7 @@ class CodeEvaluator {
     const headers = this.originalHeaders;
 
     // Extract data from the new format
-    const nameIndex = headers.findIndex(h => h === 'Ž–¼');
+    const nameIndex = headers.findIndex(h => h === 'æ°å');
     const userIdIndex = headers.findIndex(h => h === 'USERID');
     const answerIndex = headers.findIndex(h => h === 'report/answer');
     const pointIndex = headers.findIndex(h => h === 'point');
