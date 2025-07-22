@@ -29,12 +29,17 @@ body {
   color: var(--text);
   min-height: 100vh;
   line-height: 1.6;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh; /* Make body at least viewport height */
 }
 
 .container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  flex: 1;
 }
 
 .header {
@@ -513,11 +518,22 @@ textarea:focus {
     align-items: flex-start;
   }
 
-  .container {
+  /* .container {
     padding: 1rem;
-  }
+  } */
 
   .header h1 {
     font-size: 2rem;
   }
 }
+
+.footer {
+  text-align: center; /* Center the text */
+  padding: 1rem 0; /* Add some vertical padding */
+  margin-top: 2rem; /* Add some space above the footer */
+  background-color: var(--card-bg-color); /* Or a different background color */
+  color: var(--text-muted); /* A muted text color */
+  font-size: 0.85rem; /* Smaller font size */
+  border-top: 1px solid var(--border-color); /* Optional: a subtle border at the top */
+}
+
