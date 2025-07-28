@@ -102,6 +102,9 @@ class CodeEvaluator {
     // Problem statement validation
     this.problemStatement.addEventListener('input', this.validateForm.bind(this));
 
+    // API key validation - validate form when API key changes
+    this.apiKey.addEventListener('input', this.validateForm.bind(this));
+
     // Settings events
     this.settingsIconBtn.addEventListener('click', this.openSettingsModal.bind(this));
     this.settingsCloseBtn.addEventListener('click', this.closeSettingsModal.bind(this));
@@ -307,11 +310,65 @@ class CodeEvaluator {
   validateForm() {
     const hasFile = this.csvData.length > 0;
     const hasProblem = this.problemStatement.value.trim().length > 0;
-    this.evaluateBtn.disabled = !(hasFile && hasProblem);
+    const hasApiKey = this.validateApiKey();
+
+    // Enable evaluate button only if all requirements are met
+    this.evaluateBtn.disabled = !(hasFile && hasProblem && hasApiKey);
+
+    // Update button text to reflect missing requirements
+    if (!hasApiKey) {
+      this.evaluateBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> API Key Required';
+    } else if (!hasFile || !hasProblem) {
+      this.evaluateBtn.innerHTML = '<i class="fas fa-play"></i> Start Evaluation';
+    } else {
+      this.evaluateBtn.innerHTML = '<i class="fas fa-play"></i> Start Evaluation';
+    }
+  }
+
+  validateApiKey() {
+    const apiKey = this.apiKey.value.trim();
+    const provider = this.llmProvider.value;
+
+    // Check if API key is provided and not a placeholder
+    if (!apiKey ||
+        apiKey === 'sk-your-openai-api-key-here' ||
+        apiKey === 'sk-' ||
+        apiKey.length < 10) {
+      return false;
+    }
+
+    // Basic format validation for different providers
+    switch (provider) {
+      case 'openai':
+        return apiKey.startsWith('sk-') && apiKey.length > 20;
+      case 'claude':
+        return apiKey.startsWith('sk-ant-') && apiKey.length > 30;
+      case 'gemini':
+        return apiKey.length > 20; // Gemini keys don't have a standard prefix
+      case 'custom':
+        return apiKey.length > 5; // Minimal validation for custom endpoints
+      default:
+        return apiKey.length > 5;
+    }
   }
 
   async startEvaluation() {
     if (this.isEvaluating) return;
+
+    // Validate API key before starting evaluation
+    if (!this.validateApiKey()) {
+      this.showToast('Please enter a valid API key in the settings before starting evaluation.', 'error');
+      this.openSettingsModal(); // Open settings modal to help user
+      return;
+    }
+
+    // Additional validation check
+    const settings = this.getCurrentSettings();
+    if (!settings.apiKey || settings.apiKey.trim().length === 0) {
+      this.showToast('API key is required for evaluation. Please configure it in settings.', 'error');
+      this.openSettingsModal();
+      return;
+    }
 
     // Reset evaluation state
     this.isEvaluating = true;
@@ -481,54 +538,80 @@ class CodeEvaluator {
       return;
     }
 
+    // Validate API key before making request
+    const settings = this.getCurrentSettings();
+    if (!settings.apiKey || !this.validateApiKey()) {
+      throw new Error('Invalid or missing API key. Please check your settings.');
+    }
+
     // Create exercise-specific problem statement if available
     const exerciseSpecificProblem = this.createExerciseSpecificProblem(currentExercise);
     const problemToUse = exerciseSpecificProblem || this.problemStatement.value;
 
     // PRIVACY: Only send code and problem statement to LLM - NO student information
-    const settings = this.getCurrentSettings();
-    const response = await fetch('/evaluate', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        problemStatement: problemToUse,
-        userCode: code,  // Only the code, no student names, IDs, or other personal info
-        llmSettings: settings, // Pass current LLM settings
-        exerciseInfo: { // Add exercise context
-          exerciseNumber: currentExercise,
-          exerciseType: 'programming_exercise'
+    try {
+      const response = await fetch('/evaluate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          problemStatement: problemToUse,
+          userCode: code,  // Only the code, no student names, IDs, or other personal info
+          llmSettings: settings, // Pass current LLM settings
+          exerciseInfo: { // Add exercise context
+            exerciseNumber: currentExercise,
+            exerciseType: 'programming_exercise'
+          }
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle specific API key related errors
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('API key authentication failed. Please check your API key in settings.');
+        } else if (response.status === 429) {
+          throw new Error('API rate limit exceeded. Please wait and try again.');
+        } else {
+          throw new Error(data.error || 'Evaluation failed');
         }
-      })
-    });
+      }
 
-    const data = await response.json();
+      const jsonData = JSON.parse(data.output);
+      const result = this.calculateScore(jsonData);
 
-    if (!response.ok) {
-      throw new Error(data.error || 'Evaluation failed');
+      this.results.push({
+        id: displayId,
+        exercise: currentExercise,
+        code: code,
+        score: result.score,
+        result: jsonData.Result,
+        compile: jsonData.Compile,
+        quality: jsonData.Quality,
+        reason: jsonData.Reason,
+        errorMsg: jsonData.Error_msg,
+        rawResponse: data.output
+      });
+
+      // Update the CSV row with score and detailed comment
+      // The original student info remains in the CSV, only score/comment are updated
+      this.csvData[index][pointIndex] = result.score;
+      this.csvData[index][commentIndex] = this.formatComment(jsonData, result.score, currentExercise);
+
+    } catch (fetchError) {
+      // Handle network or API errors
+      console.error('API request failed:', fetchError);
+
+      // If it's an API key issue, stop the evaluation
+      if (fetchError.message.includes('API key') || fetchError.message.includes('authentication')) {
+        this.isEvaluating = false; // Stop the evaluation
+        throw new Error(`API Key Error: ${fetchError.message}. Evaluation stopped.`);
+      }
+
+      throw fetchError;
     }
-
-    const jsonData = JSON.parse(data.output);
-    const result = this.calculateScore(jsonData);
-
-    this.results.push({
-      id: displayId,
-      exercise: currentExercise,
-      code: code,
-      score: result.score,
-      result: jsonData.Result,
-      compile: jsonData.Compile,
-      quality: jsonData.Quality,
-      reason: jsonData.Reason,
-      errorMsg: jsonData.Error_msg,
-      rawResponse: data.output
-    });
-
-    // Update the CSV row with score and detailed comment
-    // The original student info remains in the CSV, only score/comment are updated
-    this.csvData[index][pointIndex] = result.score;
-    this.csvData[index][commentIndex] = this.formatComment(jsonData, result.score, currentExercise);
   }
 
   createExerciseSpecificProblem(exerciseNo) {
@@ -1058,6 +1141,9 @@ class CodeEvaluator {
       localStorage.setItem('llmSettings', JSON.stringify(settingsToSave));
       this.showToast('LLM settings saved successfully!', 'success');
       this.closeSettingsModal();
+
+      // Revalidate form after settings change
+      this.validateForm();
     } catch (error) {
       this.showToast('Error saving LLM settings', 'error');
       console.error('Error saving LLM settings:', error);
