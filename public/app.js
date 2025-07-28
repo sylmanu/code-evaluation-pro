@@ -12,6 +12,13 @@ class CodeEvaluator {
     this.timer = null;
     this.exerciseGroups = {}; // Add for multi-exercise support
 
+    // New properties for multi-exercise tracking
+    this.totalExercises = 0;
+    this.completedExercises = 0;
+    this.currentExercise = '';
+    this.exerciseProgress = {};
+    this.allExercisesCompleted = false;
+
     this.initializeElements();
     this.bindEvents();
     this.initializeSettings(); // This now handles both model options and loading settings
@@ -306,20 +313,38 @@ class CodeEvaluator {
   async startEvaluation() {
     if (this.isEvaluating) return;
 
+    // Reset evaluation state
     this.isEvaluating = true;
     this.isPaused = false;
     this.currentIndex = 1; // Skip header
     this.results = [];
     this.startTime = Date.now();
+    this.allExercisesCompleted = false;
+    this.completedExercises = 0;
+    this.currentExercise = '';
 
     // Group data by exercises for better progress tracking
     this.exerciseGroups = this.groupByExercises();
+    this.totalExercises = Object.keys(this.exerciseGroups).length;
+
+    // Initialize exercise progress tracking
+    this.exerciseProgress = {};
+    Object.keys(this.exerciseGroups).forEach(exercise => {
+      this.exerciseProgress[exercise] = {
+        completed: 0,
+        total: this.exerciseGroups[exercise].length
+      };
+    });
+
     console.log('Exercise groups:', this.exerciseGroups);
+    console.log(`Starting evaluation for ${this.totalExercises} exercises`);
 
     this.progressSection.classList.add('active');
     this.totalItems.textContent = this.csvData.length - 1; // Exclude header
     this.startTimer();
 
+    // Disable export initially
+    this.exportBtn.disabled = true;
     this.evaluateBtn.disabled = true;
     this.pauseBtn.disabled = false;
 
@@ -349,16 +374,20 @@ class CodeEvaluator {
     const exercises = Object.keys(this.exerciseGroups);
     console.log(`Processing ${exercises.length} exercises:`, exercises);
 
-    // Show current exercise being processed
+    // Process each exercise sequentially
     for (const exerciseNo of exercises) {
       if (!this.isEvaluating) break;
 
+      this.currentExercise = exerciseNo;
       console.log(`\n=== Processing Exercise ${exerciseNo} ===`);
+      this.updateProgressDisplay(); // Update display to show current exercise
+
       const exerciseRows = this.exerciseGroups[exerciseNo];
 
       for (const { rowIndex, data } of exerciseRows) {
         if (!this.isEvaluating) break;
 
+        // Handle pause state
         if (this.isPaused) {
           await new Promise(resolve => {
             const checkPause = () => {
@@ -375,6 +404,10 @@ class CodeEvaluator {
         try {
           this.currentIndex = rowIndex;
           await this.evaluateSingleSubmission(rowIndex, exerciseNo);
+
+          // Update exercise-specific progress
+          this.exerciseProgress[exerciseNo].completed++;
+
           this.updateProgress();
           this.updateResultsDisplay();
         } catch (error) {
@@ -382,10 +415,28 @@ class CodeEvaluator {
           this.showToast(`Error evaluating exercise ${exerciseNo}: ${error.message}`, 'error');
         }
       }
+
+      // Mark exercise as completed
+      this.completedExercises++;
+      console.log(`✓ Exercise ${exerciseNo} completed (${this.completedExercises}/${this.totalExercises})`);
     }
 
     if (this.isEvaluating) {
       this.completeEvaluation();
+    }
+  }
+
+  updateProgressDisplay() {
+    // Update the progress display to show current exercise being processed
+    if (this.currentExercise && this.totalExercises > 1) {
+      const exerciseInfo = document.querySelector('.progress-header h3');
+      if (exerciseInfo) {
+        exerciseInfo.innerHTML = `
+          <i class="fas fa-chart-line"></i>
+          Evaluation Progress - Exercise ${this.currentExercise}
+          (${this.completedExercises + 1}/${this.totalExercises})
+        `;
+      }
     }
   }
 
@@ -544,6 +595,32 @@ class CodeEvaluator {
       const avgScore = this.results.reduce((sum, r) => sum + r.score, 0) / this.results.length;
       this.avgScore.textContent = avgScore.toFixed(1);
     }
+
+    // Update progress text with exercise information if multiple exercises
+    if (this.totalExercises > 1) {
+      const exerciseProgressText = this.getExerciseProgressText();
+      const progressHeader = document.querySelector('.progress-header h3');
+      if (progressHeader && exerciseProgressText) {
+        progressHeader.innerHTML = `
+          <i class="fas fa-chart-line"></i>
+          ${exerciseProgressText}
+        `;
+      }
+    }
+  }
+
+  getExerciseProgressText() {
+    if (this.totalExercises <= 1) return null;
+
+    const completedCount = this.completedExercises;
+    const totalCount = this.totalExercises;
+    const currentExerciseProgress = this.exerciseProgress[this.currentExercise];
+
+    if (currentExerciseProgress) {
+      return `Exercise ${this.currentExercise} (${currentExerciseProgress.completed}/${currentExerciseProgress.total}) - Overall: ${completedCount}/${totalCount} exercises`;
+    }
+
+    return `Progress: ${completedCount}/${totalCount} exercises completed`;
   }
 
   updateResultsDisplay() {
@@ -564,7 +641,8 @@ class CodeEvaluator {
       this.resultsGrid.appendChild(resultElement);
     });
 
-    this.exportBtn.disabled = false;
+    // Only enable export when all exercises are completed
+    this.exportBtn.disabled = !this.allExercisesCompleted;
   }
 
   createResultElement(result) {
@@ -640,16 +718,29 @@ class CodeEvaluator {
 
   completeEvaluation() {
     this.isEvaluating = false;
+    this.allExercisesCompleted = true;
     clearInterval(this.timer);
 
     this.evaluateBtn.disabled = false;
     this.pauseBtn.disabled = true;
     this.pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
 
+    // Reset progress header to final state
+    const progressHeader = document.querySelector('.progress-header h3');
+    if (progressHeader) {
+      progressHeader.innerHTML = `
+        <i class="fas fa-chart-line"></i>
+        Evaluation Complete - All ${this.totalExercises} Exercises Processed
+      `;
+    }
+
     this.updateSummaryStats();
     this.summaryStats.classList.remove('hidden');
 
-    this.showToast('Evaluation completed successfully!', 'success');
+    // Enable export now that all exercises are completed
+    this.exportBtn.disabled = false;
+
+    this.showToast(`Evaluation completed successfully! All ${this.totalExercises} exercises processed.`, 'success');
   }
 
   updateSummaryStats() {
@@ -667,13 +758,25 @@ class CodeEvaluator {
     document.getElementById('errorCount').textContent = errorCount;
     document.getElementById('finalAvgScore').textContent = avgScore;
 
-    // Show exercise count in the interface
-    console.log(`Evaluated ${this.results.length} submissions across ${uniqueExercises} exercises`);
+    // Log summary for debugging
+    console.log(`✓ Evaluation Summary:`);
+    console.log(`  - Total submissions: ${this.results.length}`);
+    console.log(`  - Unique exercises: ${uniqueExercises}`);
+    console.log(`  - Perfect scores: ${perfectCount}`);
+    console.log(`  - Passing scores: ${passingCount}`);
+    console.log(`  - Compilation errors: ${errorCount}`);
+    console.log(`  - Average score: ${avgScore}`);
   }
 
   exportResults() {
     if (this.results.length === 0) {
       this.showToast('No results to export.', 'error');
+      return;
+    }
+
+    // Check if all exercises are completed before allowing export
+    if (!this.allExercisesCompleted) {
+      this.showToast('Please wait for all exercises to be evaluated before exporting.', 'warning');
       return;
     }
 
@@ -696,7 +799,7 @@ class CodeEvaluator {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    this.showToast('Results exported successfully!', 'success');
+    this.showToast(`Results exported successfully! ${this.totalExercises} exercises, ${this.results.length} submissions processed.`, 'success');
   }
 
   showLoading(show) {
@@ -920,7 +1023,6 @@ class CodeEvaluator {
       }, 5000);
     }
   }
-
 
   getCurrentSettings() {
     return {
