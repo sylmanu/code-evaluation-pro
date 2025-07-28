@@ -1053,3 +1053,81 @@ class CodeEvaluator {
 document.addEventListener('DOMContentLoaded', () => {
   new CodeEvaluator();
 });
+
+
+/*
+
+
+
+
+===Exercise 2===
+{0，1}からなる3行5列の行列において，0の個数を求めるにあたり，下記のプログラムの挿入位置に入るコードを答えなさい：
+
+include <stdio.h>
+
+int main() {
+    int array[3][5] = { {1, 0, 0, 1, 1}, {0, 1, 1, 1, 0}, {1, 0, 0, 0, 1} };
+    int result = 0;
+
+  //挿入位置
+
+    printf("0の個数は%dです\n", result);
+
+    return 0;
+ }
+
+===Exercise 6===
+以下は，入力された小文字からなる文字列において，小文字の'm'を見つけたら大文字の’M’に変換するプログラムのmain関数である．void m2M (char *str)　を実装しなさい．なお，関数m2M中において，文字列の要素は必ずポインタでアクセスすること
+
+ #define _CRT_SECURE_NO_WARNINGS
+
+#include <stdio.h>
+
+//挿入位置
+
+int main()
+{
+    char buf[128];
+
+    printf("文字列（小文字）を入力してください\n");
+    scanf("%s", buf);
+
+    m2M(buf);
+
+    printf("処理結果は%sです\n", buf);
+
+    return 0;
+}
+
+
+
+
+Vectorは3次元ベクトルを表す構造体である。下記の問に答えて空欄を記述してプログラムを完成させよ。
+ただし、下記の注意に従うこと。
+double getLength(Vector v)はベクトルv(x,y,z)の長さを返す関数である。
+ベクトルの長さ|v|を求める式は下記の通りである。
+|v| = (x2 + y2 + z2)1/2
+
+void Normalize(vector *v)はベクトルv(x,y,z)を単位ベクトルeに変換する。
+単位ベクトルeの変換は下記の通りである。また、必ず本関数内でgetLength(Vector v)を呼び出すこと。
+e = v / |v| = (x/|v|, y/|v|, z/|v|)
+
+
+#include 	&lt;stdio.h&gt;
+#include 	&lt;math.h&gt;
+
+struct Vector {
+    double x;
+    double y;
+    double z;
+};
+
+//挿入位置
+
+int main() {
+    Vector a = { 1.0, 1.0, 1.0 };
+    printf(&quot;ベクトルaの長さ：%lf\n&quot;, getLength(a));
+    Normalize(&a);
+    printf(&quot;Normalize後のベクトルaの長さ：%lf\n&quot;, getLength(a));
+}"
+*/
