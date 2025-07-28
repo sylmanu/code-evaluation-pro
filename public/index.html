@@ -30,8 +30,9 @@
         <div class="textarea-container">
           <textarea
             id="problemStatement"
-            placeholder="Enter the programming problem statement here...
-          問題文例：  Vectorは3次元ベクトルを表す構造体である。空欄を記述してプログラムを完成させよ。
+            placeholder="問題文例...
+=== Exercise 2 ===
+Vectorは3次元ベクトルを表す構造体である。空欄を記述してプログラムを完成させよ。
 #include 	&lt;stdio.h&gt;
 #include 	&lt;math.h&gt;
 
@@ -48,6 +49,29 @@ int main() {
     printf(&quot;ベクトルaの長さ：%lf\n&quot;, getLength(a));
     Normalize(&a);
     printf(&quot;Normalize後のベクトルaの長さ：%lf\n&quot;, getLength(a));
+}
+
+=== Exercise 6 ===
+以下は，入力された小文字からなる文字列において，小文字の'm'を見つけたら大文字の’M’に変換するプログラムのmain関数である．void m2M (char *str)　を実装しなさい．なお，関数m2M中において，文字列の要素は必ずポインタでアクセスすること
+
+#define _CRT_SECURE_NO_WARNINGS
+
+#include &lt;stdio.h&gt;
+
+//挿入位置
+
+int main()
+{
+    char buf[128];
+
+    printf(&quot;文字列（小文字）を入力してください\n&quot;);
+    scanf(&quot;%s&quot;, buf);
+
+    m2M(buf);
+
+    printf(&quot;処理結果は%sです\n&quot;, buf);
+
+    return 0;
 }"
             required
           ></textarea>

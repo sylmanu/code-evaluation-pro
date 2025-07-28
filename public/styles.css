@@ -212,6 +212,7 @@ textarea:focus {
   min-width: 200px;
 }
 
+
 .progress-section {
   background: var(--surface);
   border-radius: 16px;
@@ -339,6 +340,19 @@ textarea:focus {
 .result-id {
   font-weight: 600;
   color: var(--text);
+}
+
+.exercise-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, var(--primary), var(--secondary));
+  color: white;
+  padding: 0.2rem 0.5rem;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .score-badge {

@@ -10,6 +10,7 @@ class CodeEvaluator {
     this.currentIndex = 0;
     this.startTime = null;
     this.timer = null;
+    this.exerciseGroups = {}; // Add for multi-exercise support
 
     this.initializeElements();
     this.bindEvents();
@@ -109,7 +110,6 @@ class CodeEvaluator {
     this.maxTokensSlider.addEventListener('input', () => this.maxTokensValueSpan.textContent = this.maxTokensSlider.value);
     this.topPSlider.addEventListener('input', () => this.topPValueSpan.textContent = this.topPSlider.value);
     this.frequencyPenaltySlider.addEventListener('input', () => this.frequencyPenaltyValueSpan.textContent = this.frequencyPenaltySlider.value);
-
 
     // ESC key to close modal
     document.addEventListener('keydown', (e) => {
@@ -246,12 +246,21 @@ class CodeEvaluator {
     if (this.csvData.length === 0) return;
 
     const headers = this.originalHeaders;
-    const sampleRows = this.csvData.slice(1, 4); // Show first 3 data rows
+    const sampleRows = this.csvData.slice(1, 6); // Show first 5 data rows
+
+    // Detect unique exercises in the data
+    const qNoIndex = headers.findIndex(h => h === 'Q.No');
+    const exercises = new Set();
+
+    for (let i = 1; i < Math.min(20, this.csvData.length); i++) {
+      const qNo = this.csvData[i][qNoIndex];
+      if (qNo) exercises.add(qNo);
+    }
 
     let tableHtml = '<table class="csv-table"><thead><tr>';
 
-    // Show only non-sensitive columns for preview
-    const previewColumns = ['出席番号', 'Q.No', 'report/answer', 'point', 'comment'];
+    // Show relevant columns for preview
+    const previewColumns = ['出席番号', '氏名', 'Q.No', 'report/answer', 'point', 'comment'];
     previewColumns.forEach(col => {
       if (headers.includes(col)) {
         tableHtml += `<th>${col}</th>`;
@@ -266,7 +275,7 @@ class CodeEvaluator {
         if (colIndex !== -1) {
           const cellContent = row[colIndex] || '';
           // Truncate code content for preview
-          const truncated = cellContent.length > 100 ? cellContent.substring(0, 100) + '...' : cellContent;
+          const truncated = cellContent.length > 60 ? cellContent.substring(0, 60) + '...' : cellContent;
           tableHtml += `<td title="${cellContent.replace(/"/g, '&quot;')}">${truncated}</td>`;
         }
       });
@@ -275,10 +284,12 @@ class CodeEvaluator {
 
     tableHtml += '</tbody></table>';
 
-    if (this.csvData.length > 4) {
-      const remainingRows = this.csvData.length - 4; // 4 = header + 3 preview rows
+    if (this.csvData.length > 6) {
+      const remainingRows = this.csvData.length - 6;
+      const exerciseList = Array.from(exercises).join(', ');
       tableHtml += `<p style="margin-top: 0.5rem; color: var(--text-muted); font-size: 0.8rem;">
-        ... and ${remainingRows} more rows (Personal information hidden for privacy)
+        ... and ${remainingRows} more rows<br>
+        <strong>Detected exercises:</strong> ${exerciseList} (${exercises.size} different exercises)
       </p>`;
     }
 
@@ -301,6 +312,10 @@ class CodeEvaluator {
     this.results = [];
     this.startTime = Date.now();
 
+    // Group data by exercises for better progress tracking
+    this.exerciseGroups = this.groupByExercises();
+    console.log('Exercise groups:', this.exerciseGroups);
+
     this.progressSection.classList.add('active');
     this.totalItems.textContent = this.csvData.length - 1; // Exclude header
     this.startTimer();
@@ -311,33 +326,62 @@ class CodeEvaluator {
     await this.processEvaluations();
   }
 
-  async processEvaluations() {
-    while (this.currentIndex < this.csvData.length && this.isEvaluating) {
-      if (this.isPaused) {
-        await new Promise(resolve => {
-          const checkPause = () => {
-            if (!this.isPaused || !this.isEvaluating) {
-              resolve();
-            } else {
-              setTimeout(checkPause, 100);
-            }
-          };
-          checkPause();
-        });
-      }
+  groupByExercises() {
+    const headers = this.originalHeaders;
+    const qNoIndex = headers.findIndex(h => h === 'Q.No');
+    const groups = {};
 
+    // Group rows by Q.No (exercise number)
+    for (let i = 1; i < this.csvData.length; i++) {
+      const row = this.csvData[i];
+      const exerciseNo = row[qNoIndex] || 'Unknown';
+
+      if (!groups[exerciseNo]) {
+        groups[exerciseNo] = [];
+      }
+      groups[exerciseNo].push({ rowIndex: i, data: row });
+    }
+
+    return groups;
+  }
+
+  async processEvaluations() {
+    const exercises = Object.keys(this.exerciseGroups);
+    console.log(`Processing ${exercises.length} exercises:`, exercises);
+
+    // Show current exercise being processed
+    for (const exerciseNo of exercises) {
       if (!this.isEvaluating) break;
 
-      try {
-        await this.evaluateSingleSubmission(this.currentIndex);
-        this.updateProgress();
-        this.updateResultsDisplay();
-      } catch (error) {
-        console.error('Evaluation error:', error);
-        this.showToast(`Error evaluating submission ${this.currentIndex}: ${error.message}`, 'error');
-      }
+      console.log(`\n=== Processing Exercise ${exerciseNo} ===`);
+      const exerciseRows = this.exerciseGroups[exerciseNo];
 
-      this.currentIndex++;
+      for (const { rowIndex, data } of exerciseRows) {
+        if (!this.isEvaluating) break;
+
+        if (this.isPaused) {
+          await new Promise(resolve => {
+            const checkPause = () => {
+              if (!this.isPaused || !this.isEvaluating) {
+                resolve();
+              } else {
+                setTimeout(checkPause, 100);
+              }
+            };
+            checkPause();
+          });
+        }
+
+        try {
+          this.currentIndex = rowIndex;
+          await this.evaluateSingleSubmission(rowIndex, exerciseNo);
+          this.updateProgress();
+          this.updateResultsDisplay();
+        } catch (error) {
+          console.error(`Error evaluating exercise ${exerciseNo}, row ${rowIndex}:`, error);
+          this.showToast(`Error evaluating exercise ${exerciseNo}: ${error.message}`, 'error');
+        }
+      }
     }
 
     if (this.isEvaluating) {
@@ -345,7 +389,7 @@ class CodeEvaluator {
     }
   }
 
-  async evaluateSingleSubmission(index) {
+  async evaluateSingleSubmission(index, exerciseNo = null) {
     const row = this.csvData[index];
     const headers = this.originalHeaders;
 
@@ -355,18 +399,21 @@ class CodeEvaluator {
     const answerIndex = headers.findIndex(h => h === 'report/answer');
     const pointIndex = headers.findIndex(h => h === 'point');
     const commentIndex = headers.findIndex(h => h === 'comment');
+    const qNoIndex = headers.findIndex(h => h === 'Q.No');
 
     const studentName = row[nameIndex] || `Student ${index}`;
     const userId = row[userIdIndex] || '';
     const code = row[answerIndex] || '';
+    const currentExercise = exerciseNo || row[qNoIndex] || 'Unknown';
 
     // Create anonymous display ID - no personal info in logs or display
-    const displayId = `Submission ${index}`;
+    const displayId = `Exercise ${currentExercise} - Submission ${index}`;
 
     // Skip if no code to evaluate
     if (!code.trim()) {
       this.results.push({
         id: displayId,
+        exercise: currentExercise,
         code: code,
         score: 0,
         result: 'NO_CODE',
@@ -383,6 +430,10 @@ class CodeEvaluator {
       return;
     }
 
+    // Create exercise-specific problem statement if available
+    const exerciseSpecificProblem = this.createExerciseSpecificProblem(currentExercise);
+    const problemToUse = exerciseSpecificProblem || this.problemStatement.value;
+
     // PRIVACY: Only send code and problem statement to LLM - NO student information
     const settings = this.getCurrentSettings();
     const response = await fetch('/evaluate', {
@@ -391,9 +442,13 @@ class CodeEvaluator {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        problemStatement: this.problemStatement.value,
+        problemStatement: problemToUse,
         userCode: code,  // Only the code, no student names, IDs, or other personal info
-        llmSettings: settings // Pass current LLM settings
+        llmSettings: settings, // Pass current LLM settings
+        exerciseInfo: { // Add exercise context
+          exerciseNumber: currentExercise,
+          exerciseType: 'programming_exercise'
+        }
       })
     });
 
@@ -408,6 +463,7 @@ class CodeEvaluator {
 
     this.results.push({
       id: displayId,
+      exercise: currentExercise,
       code: code,
       score: result.score,
       result: jsonData.Result,
@@ -421,11 +477,33 @@ class CodeEvaluator {
     // Update the CSV row with score and detailed comment
     // The original student info remains in the CSV, only score/comment are updated
     this.csvData[index][pointIndex] = result.score;
-    this.csvData[index][commentIndex] = this.formatComment(jsonData, result.score);
+    this.csvData[index][commentIndex] = this.formatComment(jsonData, result.score, currentExercise);
   }
 
-  formatComment(jsonData, score) {
-    let comment = `Score: ${score}/5\n`;
+  createExerciseSpecificProblem(exerciseNo) {
+    // If user has entered different problem statements for different exercises,
+    // they can be separated by "=== Exercise N ===" markers
+    const mainProblem = this.problemStatement.value;
+
+    if (!mainProblem.includes('===')) {
+      // No exercise-specific problems, use the main one
+      return mainProblem;
+    }
+
+    // Try to extract exercise-specific problem
+    const exercisePattern = new RegExp(`===\\s*Exercise\\s*${exerciseNo}\\s*===([\\s\\S]*?)(?===\\s*Exercise\\s*\\d|$)`, 'i');
+    const match = mainProblem.match(exercisePattern);
+
+    if (match) {
+      return match[1].trim();
+    }
+
+    // Fallback to main problem if specific one not found
+    return mainProblem;
+  }
+
+  formatComment(jsonData, score, exerciseNo) {
+    let comment = `Exercise ${exerciseNo} - Score: ${score}/5\n`;
     comment += `Result: ${jsonData.Result}\n`;
     comment += `Compilation: ${jsonData.Compile}\n`;
     comment += `Quality: ${jsonData.Quality}/5\n`;
@@ -496,9 +574,12 @@ class CodeEvaluator {
     const scoreClass = result.score >= 5 ? 'score-perfect' :
                       result.score >= 3 ? 'score-good' : 'score-poor';
 
+    // Include exercise information in the display
+    const exerciseInfo = result.exercise ? `<span class="exercise-badge">Ex ${result.exercise}</span>` : '';
+
     div.innerHTML = `
       <div class="result-header">
-        <div class="result-id">${result.id}</div>
+        <div class="result-id">${result.id} ${exerciseInfo}</div>
         <div class="score-badge ${scoreClass}">Score: ${result.score}</div>
       </div>
       <div class="result-details">
@@ -578,10 +659,16 @@ class CodeEvaluator {
     const avgScore = this.results.length > 0 ?
       (this.results.reduce((sum, r) => sum + r.score, 0) / this.results.length).toFixed(1) : 0;
 
+    // Count unique exercises
+    const uniqueExercises = new Set(this.results.map(r => r.exercise)).size;
+
     document.getElementById('perfectCount').textContent = perfectCount;
     document.getElementById('passingCount').textContent = passingCount;
     document.getElementById('errorCount').textContent = errorCount;
     document.getElementById('finalAvgScore').textContent = avgScore;
+
+    // Show exercise count in the interface
+    console.log(`Evaluated ${this.results.length} submissions across ${uniqueExercises} exercises`);
   }
 
   exportResults() {
@@ -627,8 +714,6 @@ class CodeEvaluator {
   }
 
   // --- Settings methods ---
-
-  // Removed ensureModalHidden - relying on CSS transitions and initial hidden state
 
   openSettingsModal() {
     this.settingsModal.classList.add('active'); // Add 'active' class to trigger CSS transition
@@ -920,7 +1005,7 @@ class CodeEvaluator {
       maxTokens: 500,
       topP: 1.0,
       frequencyPenalty: 0.0,
-      systemPrompt: 'You are a highly skilled and impartial code evaluator. Provide clear, concise, and accurate feedback on student programming submissions. Focus on correctness, efficiency, and adherence to the problem statement. When providing feedback, always clearly state the compilation status, the result of test cases, code quality, and a concise reason for the assigned score in Japanese. Do not include conversational filler or pleasantries.',
+      systemPrompt: 'あなたは非常に優秀で公平なコード評価者です。学生のプログラミング課題に対して、明確で簡潔かつ正確なフィードバックを提供してください。正確性、効率性、問題文への適合性に重点を置いてください。フィードバックを提供する際は、コンパイル状況、テストケースの結果、コード品質、および割り当てた点数の簡潔な理由を必ず明確に述べてください。会話的な修辞や挨拶は含めないでください。',
     };
   }
 
